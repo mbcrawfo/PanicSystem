@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using BattleTech;
-using BattleTech.Save.Core;
 using PanicSystem.Patches;
 using static PanicSystem.PanicSystem;
 using static PanicSystem.Logger;
@@ -132,9 +131,10 @@ namespace PanicSystem.Components
         {
             var pilot = defender.GetPilot();
             var weapons = defender.Weapons;
-            var gutsAndTacticsSum = defender.SkillGuts * modSettings.GutsEjectionResistPerPoint +
-                                    defender.SkillTactics * modSettings.TacticsEjectionResistPerPoint;
-            float totalMultiplier = 0;
+            var gutsAndTacticsSum =
+                defender.SkillGuts * modSettings.GutsEjectionResistPerPoint +
+                defender.SkillTactics * modSettings.TacticsEjectionResistPerPoint;
+            float? totalMultiplier = 0;
 
             DrawHeader();
             LogReport($"{$"Unit health {ActorHealth(defender):F2}%",-20} | {"",10} |");
@@ -155,6 +155,17 @@ namespace PanicSystem.Components
                     {
                         totalMultiplier += modSettings.HeatDamageFactor * Mech_AddExternalHeat_Patch.heatDamage;
                         LogReport($"{$"Heat damage {Mech_AddExternalHeat_Patch.heatDamage}",-20} | {modSettings.HeatDamageFactor * Mech_AddExternalHeat_Patch.heatDamage,10:F3} | {totalMultiplier,10:F3}");
+                    }
+
+                    var panicStatFactor = defendingMech.StatCollection?.GetStatistic("PanicStatFactor")?.Value<float>();
+                    if (panicStatFactor != null)
+                    {
+                        totalMultiplier += modSettings.PanicStatModifier * panicStatFactor;
+                        LogReport($"{"PanicStatFactor",-20} |{new string(' ', 10)}| {panicStatFactor,10}");
+                    }
+                    else
+                    {
+                        LogDebug("PanicStatFactor is null");
                     }
 
                     if (PercentPilot(pilot) < 1)
@@ -284,7 +295,7 @@ namespace PanicSystem.Components
             totalMultiplier -= gutsAndTacticsSum;
 
             LogReport($"{"Guts and Tactics",-20} | {$"-{gutsAndTacticsSum}",10} | {totalMultiplier,10:F3}");
-            return totalMultiplier;
+            return (float) totalMultiplier;
         }
 
         // false is punchin' out

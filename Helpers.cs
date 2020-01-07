@@ -15,10 +15,45 @@ using Random = UnityEngine.Random;
 
 namespace PanicSystem
 {
-    public class Helpers
+    public static class Helpers
     {
         // need a global to check the value in another code path
         internal static float damageWithHeatDamage;
+
+        // extension methods intended to make saving throws occur against realistic structure/armor maximums
+        // since ME/CC adjust these, the HBS methods to check condition return inaccurately
+        // so read out the stat and apply it, else if null return the original value
+        // existing checks consider factor reduction as damage without this
+        internal static float FactoredMaxStructureForLocation(this Mech mech, ChassisLocations location)
+        {
+            var maxStructureForLocation = mech.MaxStructureForLocation((int) location);
+            var structureMultiplier = mech.StatCollection.GetStatistic("StructureMultiplier")?.Value<float>();
+            if (structureMultiplier != null)
+            {
+                LogDebug($"StructureMultiplier Result = {maxStructureForLocation * structureMultiplier} ");
+                return maxStructureForLocation *
+                       mech.StatCollection.GetStatistic("StructureMultiplier").Value<float>();
+            }
+
+            LogDebug("StructureMultiplier was null");
+            return maxStructureForLocation;
+        }
+
+        // also need to scale with ArmorFactor (100% more from reinforced wouldn't reflect in MaxArmorForLocation())
+        internal static float FactoredMaxArmorForLocation(this Mech mech, ArmorLocation location)
+        {
+            var maxArmorForLocation = mech.MaxArmorForLocation((int) location);
+            var armorMultiplier = mech.StatCollection.GetStatistic("ArmorMultiplier")?.Value<float>();
+            if (armorMultiplier != null)
+            {
+                LogDebug($"ArmorMultiplier Result = {maxArmorForLocation * armorMultiplier} ");
+                return maxArmorForLocation *
+                       mech.StatCollection.GetStatistic("ArmorMultiplier").Value<float>();
+            }
+
+            LogDebug("ArmorMultiplier was null");
+            return maxArmorForLocation;
+        }
 
         // used in strings
         internal static float ActorHealth(AbstractActor actor) =>
@@ -32,40 +67,40 @@ namespace PanicSystem
             (mech.RightTorsoStructure +
              mech.RightTorsoFrontArmor +
              mech.RightTorsoRearArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.RightTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.RightTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.RightTorsoRear));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.RightTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.RightTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.RightTorsoRear));
 
         internal static float PercentLeftTorso(Mech mech) =>
             (mech.LeftTorsoStructure +
              mech.LeftTorsoFrontArmor +
              mech.LeftTorsoRearArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.LeftTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.LeftTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.LeftTorsoRear));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.LeftTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.LeftTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.LeftTorsoRear));
 
         internal static float PercentCenterTorso(Mech mech) =>
             (mech.CenterTorsoStructure +
              mech.CenterTorsoFrontArmor +
              mech.CenterTorsoRearArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.CenterTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.CenterTorso) +
-             mech.MaxArmorForLocation((int) ArmorLocation.CenterTorsoRear));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.CenterTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.CenterTorso) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.CenterTorsoRear));
 
         internal static float PercentLeftLeg(Mech mech) =>
             (mech.LeftLegStructure + mech.LeftLegArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.LeftLeg) +
-             mech.MaxArmorForLocation((int) ArmorLocation.LeftLeg));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.LeftLeg) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.LeftLeg));
 
         internal static float PercentRightLeg(Mech mech) =>
             (mech.RightLegStructure + mech.RightLegArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.RightLeg) +
-             mech.MaxArmorForLocation((int) ArmorLocation.RightLeg));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.RightLeg) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.RightLeg));
 
         internal static float PercentHead(Mech mech) =>
             (mech.HeadStructure + mech.HeadArmor) /
-            (mech.MaxStructureForLocation((int) ChassisLocations.Head) +
-             mech.MaxArmorForLocation((int) ArmorLocation.Head));
+            (mech.FactoredMaxStructureForLocation(ChassisLocations.Head) +
+             mech.FactoredMaxArmorForLocation(ArmorLocation.Head));
 
 
         // applies combat modifiers to tracked mechs based on panic status
@@ -230,7 +265,7 @@ namespace PanicSystem
             {
                 return false;
             }
-            
+
             var id = attackSequence.chosenTarget.GUID;
             if (!attackSequence.GetAttackDidDamage(id))
             {
@@ -245,13 +280,13 @@ namespace PanicSystem
             var percentDamageDone = (attackSequence.GetArmorDamageDealt(id) + attackSequence.GetStructureDamageDealt(id)) / (previousArmor + previousStructure) * 100;
             damageWithHeatDamage = percentDamageDone + Mech_AddExternalHeat_Patch.heatDamage * modSettings.HeatDamageFactor;
 
-            // have to check structure here AFTER armor, despite it being the priority, because we need to set the global
-            LogReport($"Damage >>> A: {armorDamage:F3} S: {structureDamage:F3} ({percentDamageDone:F2}%) H: {Mech_AddExternalHeat_Patch.heatDamage}");
+            // have to check structure here AFTER armor, despite it being the priority, because we need to set the damageWithHeatDamage global
+            LogReport($"Damage >>> A: {armorDamage:F3} S: {structureDamage:F3} ({modSettings.MinimumMechStructureDamageRequired}) ({percentDamageDone:F2}%) H: {Mech_AddExternalHeat_Patch.heatDamage}");
             if (attackSequence.chosenTarget is Mech &&
-                attackSequence.GetStructureDamageDealt(id) >= modSettings.MinimumMechStructureDamageRequired ||
+                structureDamage >= modSettings.MinimumMechStructureDamageRequired ||
                 modSettings.VehiclesCanPanic &&
                 attackSequence.chosenTarget is Vehicle &&
-                attackSequence.GetStructureDamageDealt(id) >= modSettings.MinimumVehicleStructureDamageRequired)
+                structureDamage >= modSettings.MinimumVehicleStructureDamageRequired)
             {
                 LogReport("Structure damage requires panic save");
                 return true;

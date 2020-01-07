@@ -42,12 +42,14 @@ namespace PanicSystem
         public float DistractingModifier;
         public float OverheatedModifier;
         public float ShutdownModifier;
+        public float PanicStatModifier;
         public float HeatDamageFactor;
         public float MechHealthForCrit;
         public float CritOver;
         public float UnsettledPanicFactor;
         public float StressedPanicFactor;
         public float PanickedPanicFactor;
+
 
         // Quirks
         public bool QuirksEnabled;

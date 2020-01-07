@@ -17,14 +17,12 @@ namespace PanicSystem
 
         public static void LogReport(object line)
         {
-            if (!modSettings.CombatLog)
+            if (modSettings.CombatLog)
             {
-                return;
-            }
-
-            using (var writer = new StreamWriter(LogFilePath, true))
-            {
-                writer.WriteLine($"{line}");
+                using (var writer = new StreamWriter(LogFilePath, true))
+                {
+                    writer.WriteLine($"{line}");
+                }
             }
         }
 
@@ -38,7 +36,10 @@ namespace PanicSystem
 
         internal static void LogDebug(object input)
         {
-            FileLog.Log($"[PanicSystem] {input}");
+            if (modSettings.Debug)
+            {
+                FileLog.Log($"[PanicSystem] {input ?? "null"}");
+            }
         }
     }
 }
