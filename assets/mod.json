@@ -53,7 +53,7 @@
     "ResolveMaxModifier": 10,
     "OverheatedModifier": 0,
     "ShutdownModifier": 0,
-    "PanicStatModifier": 10,
+    "PanicStatModifier": 0,
     "HeatDamageFactor": 0,
 
     /* AI Resolve goes to 50 */
