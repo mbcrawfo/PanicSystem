@@ -221,7 +221,6 @@ namespace PanicSystem
                 actor.Combat.MessageCenter.PublishMessage(new AddSequenceToStackMessage(
                     new ShowActorInfoSequence(actor, floatieString, FloatieMessage.MessageNature.Inspiration, true)));
             }
-
             else
             {
                 actor.Combat.MessageCenter.PublishMessage(new AddSequenceToStackMessage(
@@ -247,12 +246,23 @@ namespace PanicSystem
             {
                 return true;
             }
-
+            
             // can't do stuff with buildings
             if (!(__instance.directorSequences[0].chosenTarget is Vehicle) &&
                 !(__instance.directorSequences[0].chosenTarget is Mech))
             {
                 return true;
+            }
+
+            var defender = (AbstractActor) __instance.directorSequences[0].chosenTarget;
+            var index = GetActorIndex(defender);
+            if (modSettings.OneChangePerTurn)
+            {
+                if (TrackedActors[index].PanicWorsenedRecently)
+                {
+                    LogDebug("OneChangePerTurn, skipping");
+                    return true;
+                }
             }
 
             return __instance.directorSequences[0].chosenTarget?.GUID == null;
@@ -281,7 +291,7 @@ namespace PanicSystem
             damageWithHeatDamage = percentDamageDone + Mech_AddExternalHeat_Patch.heatDamage * modSettings.HeatDamageFactor;
 
             // have to check structure here AFTER armor, despite it being the priority, because we need to set the damageWithHeatDamage global
-            LogReport($"Damage >>> A: {armorDamage:F3} S: {structureDamage:F3} ({modSettings.MinimumMechStructureDamageRequired}) ({percentDamageDone:F2}%) H: {Mech_AddExternalHeat_Patch.heatDamage}");
+            LogReport($"Damage >>> A: {armorDamage:F3} S: {structureDamage:F3} ({percentDamageDone:F2}%) H: {Mech_AddExternalHeat_Patch.heatDamage}");
             if (attackSequence.chosenTarget is Mech &&
                 structureDamage >= modSettings.MinimumMechStructureDamageRequired ||
                 modSettings.VehiclesCanPanic &&

@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using BattleTech;
 using BattleTech.Achievements;
@@ -21,13 +22,18 @@ namespace PanicSystem.Patches
     public static class AttackStackSequence_OnAttackBegin_Patch
     {
         internal static float armorBeforeAttack;
+
         internal static float structureBeforeAttack;
+
+        // TODO why is this unused?
         internal static float mechHeatBeforeAttack;
 
         public static void Prefix(AttackStackSequence __instance)
         {
             if (__instance.directorSequences == null || __instance.directorSequences.Count == 0)
+            {
                 return;
+            }
 
             var target = __instance.directorSequences[0].chosenTarget;
             armorBeforeAttack = target.SummaryArmorCurrent;
@@ -60,7 +66,10 @@ namespace PanicSystem.Patches
             }
 
             var director = __instance.directorSequences;
-            if (director == null) return;
+            if (director == null)
+            {
+                return;
+            }
 
             LogReport(new string('═', 46));
             LogReport($"{director[0].attacker.DisplayName} attacks {director[0].chosenTarget.DisplayName}");
